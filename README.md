@@ -64,3 +64,30 @@ The system relies on client-side encryption. The server receives only the encryp
 
 * A basic threat model and mitigation analysis should be performed and documented separately.
 * Comprehensive E2E tests (e.g., using Cypress/Playwright) should be implemented to ensure the core flows work correctly and securely. (Test setup/code not included in this backend scaffold).
+
+
+## Deployment
+
+1. Securely transfer the deploy.sh script to the target Linux server
+```bash
+scp deploy.sh user@your_server_ip:/home/user/
+``` 
+2. Make Executable: SSH into your server and make the script executable:
+```Bash
+ssh user@your_server_ip
+chmod +x deploy.sh
+```
+3. Run: Execute the script, providing the Git repository URL. Run with sudo if you haven't added your user to the docker group or need root for installations.
+```Bash
+# Example without sudo (if user is in docker group)
+./deploy.sh git@github.com:your_user/your_repo.git
+
+# Example with sudo (for installations)
+sudo ./deploy.sh git@github.com:your_user/your_repo.git
+
+# Example with specific branch and directory
+sudo ./deploy.sh https://github.com/your_user/your_repo.git develop my_custom_app_dir
+```
+4. Create .env File: The script will likely pause and exit after cloning if the .env file is missing. cd into the project directory (onetimesecret_app or your custom name), create the .env file using nano .env or vim .env, paste your production environment variables, and save it.
+ 
+5. Re-run or Run Compose: You can either re-run the entire script (it will detect the existing directory and just pull changes) or manually run docker compose up --build -d (or the appropriate command) from within the project directory now that the .env file exists.
