@@ -1,0 +1,26 @@
+# General
+.git
+.vscode
+*.md
+
+# Node specific
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.lock
+
+# Env files (keep example)
+.env
+.env.*
+!.env.example
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Build output / Local artifacts
+frontend/dist
+frontend/node_modules
+backend/node_modules
+# Add any other local build artifacts or logs

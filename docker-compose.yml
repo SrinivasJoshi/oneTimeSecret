@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  # --- PostgreSQL Database ---
+  postgres:
+    image: postgres:17-alpine # Using v16, adjust if needed
+    container_name: onetimesecret_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password} # Use strong passwords via .env in prod!
+      POSTGRES_DB: ${POSTGRES_DB:-onetimesecretdb}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # Persist data
+    # No ports needed externally usually, backend connects via network
+    networks:
+      - ephemeral_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-onetimesecretdb}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s # Give it time to start up before first check
+    restart: unless-stopped
+
+  # --- Backend API Service ---
+  backend:
+    container_name: onetimesecret_backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      NODE_ENV: production # Set to production
+      PORT: 9000 # Internal port backend listens on (make sure backend/Dockerfile EXPOSEs this)
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-onetimesecretdb}
+      RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-60000} # 1 minute in prod? Adjust as needed
+      RATE_LIMIT_MAX_REQUESTS: ${RATE_LIMIT_MAX_REQUESTS:-50} # Adjust as needed
+      # Ensure any required secrets/keys are passed via .env
+    networks:
+      - ephemeral_network
+    depends_on:
+      postgres:
+        condition: service_healthy # Wait for postgres healthcheck
+    restart: unless-stopped
+    # No ports exposed to host - Nginx handles external traffic
+
+  # --- Nginx Reverse Proxy & Frontend Server ---
+  nginx:
+    container_name: onetimesecret_nginx
+    build:
+      context: . # Build custom nginx image
+      dockerfile: ./nginx/Dockerfile
+      args:
+        # Pass API URL for frontend build (relative path for proxy)
+        VITE_API_URL: /api
+    ports:
+      - "${NGINX_PORT:-80}:80" # Expose port 80 (or override with NGINX_PORT)
+      # Add port 443 mapping here if you set up HTTPS/SSL later
+    networks:
+      - ephemeral_network
+    depends_on:
+      - backend # Nginx needs the backend to proxy API calls
+    restart: unless-stopped
+
+volumes:
+  postgres_data: # Define the volume
+
+networks:
+  ephemeral_network: # Define the network
+    driver: bridge
