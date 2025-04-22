@@ -1,0 +1,86 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      # Create a temporary .env file for testing
+      - name: Create test environment file
+        run: |
+          cp .env.example .env
+      
+      # Build the Docker images
+      - name: Build Docker images
+        run: docker-compose build
+      
+      # Start the containers
+      - name: Start Docker containers
+        run: docker-compose up -d
+      
+      # Wait for the application to be ready
+      - name: Wait for app to be ready
+        run: |
+          echo "Waiting for application to start..."
+          timeout=60
+          counter=0
+          while ! curl -s http://localhost:80/health > /dev/null; do
+            if [ $counter -eq $timeout ]; then
+              echo "Timed out waiting for application to start"
+              exit 1
+            fi
+            echo "Still waiting..."
+            sleep 2
+            counter=$((counter+1))
+          done
+          echo "Application is up and running!"
+      
+      # Optional: Run linting on the frontend container
+      - name: Run frontend linting
+        run: docker-compose exec -T frontend npm run lint
+      
+      # For future: Run Cypress tests when they're set up with a script
+      # - name: Run E2E tests
+      #   run: |
+      #     cd frontend
+      #     npx cypress run
+      
+      # Stop containers
+      - name: Stop Docker containers
+        run: docker-compose down
+  
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: build-test
+    if: success() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    
+    steps:
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+      
+      - name: Add host key
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
+      
+      - name: Deploy to Server
+        run: |
+          ssh -o StrictHostKeyChecking=accept-new ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} '
+            cd ${{ secrets.APP_DIR }} &&
+            git pull origin ${{ github.ref_name }} &&
+            docker-compose down &&
+            docker-compose up -d --build
+          '
