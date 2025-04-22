@@ -6,20 +6,19 @@ ARG NGINX_ENVIRONMENT=local
 # Remove default nginx configuration
 RUN rm /etc/nginx/conf.d/default.conf
 
-# Use shell command to select the correct config file
-RUN if [ -f "/tmp/nginx.${NGINX_ENVIRONMENT}.conf" ]; then \
+# Copy all config files to a temp location
+COPY ./nginx/nginx*.conf /tmp/
+
+# Better logic for config selection with debug output
+RUN echo "NGINX_ENVIRONMENT=${NGINX_ENVIRONMENT}" && \
+    if [ -f "/tmp/nginx.${NGINX_ENVIRONMENT}.conf" ]; then \
       echo "Using nginx.${NGINX_ENVIRONMENT}.conf"; \
+      cp /tmp/nginx.${NGINX_ENVIRONMENT}.conf /etc/nginx/conf.d/default.conf; \
+    elif [ "${NGINX_ENVIRONMENT}" = "production" ] && [ -f "/tmp/nginx.conf" ]; then \
+      echo "Using nginx.conf for production"; \
+      cp /tmp/nginx.conf /etc/nginx/conf.d/default.conf; \
     else \
       echo "Configuration for ${NGINX_ENVIRONMENT} not found, using nginx.local.conf"; \
-    fi
-
-# Copy all potential config files to a temp location
-COPY ./nginx/nginx.*.conf /tmp/
-
-# Use shell command to select the correct file
-RUN if [ -f "/tmp/nginx.${NGINX_ENVIRONMENT}.conf" ]; then \
-      cp /tmp/nginx.${NGINX_ENVIRONMENT}.conf /etc/nginx/conf.d/default.conf; \
-    else \
       cp /tmp/nginx.local.conf /etc/nginx/conf.d/default.conf; \
     fi
 
