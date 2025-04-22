@@ -50,14 +50,18 @@ jobs:
           done
           echo "Application is up and running!"
       
-      # Optional: Run linting on the frontend container if you add a script for it
-      # - name: Run frontend linting
-      #   run: docker compose exec -T frontend npm run lint
-      
-      # For future: Run Cypress tests when they're set up with a script
-      - name: Run E2E tests
+      - name: Install Cypress
+        working-directory: ./frontend
         run: |
-          cd frontend
+            # Ensure we have the latest version of npm
+            npm install -g npm
+            # Install Cypress locally
+            npm install cypress --save-dev
+      
+      # Run Cypress tests
+      - name: Run E2E tests
+        working-directory: ./frontend
+        run: |
           npx cypress run
       
       # Stop containers
