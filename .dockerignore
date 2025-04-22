@@ -20,7 +20,7 @@ yarn-error.log*
 Thumbs.db
 
 # Build output / Local artifacts
-frontend/dist
+# frontend/dist
 frontend/node_modules
 backend/node_modules
 # Add any other local build artifacts or logs
