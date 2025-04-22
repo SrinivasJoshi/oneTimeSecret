@@ -95,6 +95,6 @@ jobs:
           ssh -o StrictHostKeyChecking=accept-new ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} '
             cd ${{ secrets.APP_DIR }} &&
             git pull origin ${{ github.ref_name }} &&
-            docker compose down &&
-            docker compose up -d --build
+            docker-compose down &&
+            docker-compose up -d --build
           '
