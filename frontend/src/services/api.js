@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Use environment variable for API URL, fallback for local dev
 // Create a .env file in frontend/ directory: VITE_API_URL=http://localhost:3000/api
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:9000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 const apiClient = axios.create({
     baseURL: API_BASE_URL,
@@ -38,14 +38,14 @@ export const consumeSecret = async (referenceId) => {
         const response = await apiClient.post(`/secrets/${referenceId}/consume`);
         return response.data.encryptedSecret; // Return the encrypted data
     } catch (error) {
-         console.error(`API Error (consumeSecret ${referenceId}):`, error.response?.status, error.response?.data);
+        console.error(`API Error (consumeSecret ${referenceId}):`, error.response?.status, error.response?.data);
         // Throw specific errors based on status code
         if (error.response) {
-             if (error.response.status === 404 || error.response.status === 410) {
+            if (error.response.status === 404 || error.response.status === 410) {
                 throw new Error('SECRET_UNAVAILABLE'); // Specific error type for frontend logic
-             } else if (error.response.status === 429) {
+            } else if (error.response.status === 429) {
                 throw new Error('RATE_LIMITED'); // Specific error type
-             }
+            }
         }
         // Generic error for other cases
         throw new Error(error.response?.data?.message || "Failed to retrieve secret from server.");
