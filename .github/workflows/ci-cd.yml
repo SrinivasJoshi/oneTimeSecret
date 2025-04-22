@@ -15,7 +15,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      # Set up Docker Buildx for better caching and multi-platform support
+      # Set up Docker Buildx for better caching
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       
@@ -24,7 +24,7 @@ jobs:
         run: |
           cp .env.example .env
       
-      # Build the Docker images - using docker compose V2 syntax (with space, not hyphen)
+      # Build the Docker images
       - name: Build Docker images
         run: docker compose build
       
@@ -50,22 +50,27 @@ jobs:
           done
           echo "Application is up and running!"
       
+      # Setup Node.js for Cypress (using actions/setup-node instead of npm global install)
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+      
+      # Install Cypress
       - name: Install Cypress
         working-directory: ./frontend
-        run: |
-            # Ensure we have the latest version of npm
-            npm install -g npm
-            # Install Cypress locally
-            npm install cypress --save-dev
+        run: npm install cypress --no-save
       
       # Run Cypress tests
-      - name: Run E2E tests
+      - name: Run Cypress tests
         working-directory: ./frontend
-        run: |
-          npx cypress run
+        run: npx cypress run
       
       # Stop containers
       - name: Stop Docker containers
+        if: always()
         run: docker compose down
   
   deploy:
