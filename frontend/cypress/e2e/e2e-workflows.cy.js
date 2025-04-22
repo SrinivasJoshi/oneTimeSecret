@@ -123,7 +123,7 @@ describe('End-to-End User Workflows', () => {
                 cy.intercept('POST', `/api/secrets/${referenceId}/consume`).as('viewer2');
                 cy.viewSecret(referenceId, keyBase64, ivBase64);
                 cy.wait('@viewer2').then((interception) => {
-                    expect(interception.response.statusCode).to.equal(404);
+                    expect(interception.response.statusCode).to.equal(410);
                 });
                 cy.contains('Secret Not Available').should('be.visible');
                 cy.contains('It has already been viewed by someone').should('be.visible');
