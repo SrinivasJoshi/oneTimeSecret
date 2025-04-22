@@ -15,18 +15,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
+      # Set up Docker Buildx for better caching and multi-platform support
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
       # Create a temporary .env file for testing
       - name: Create test environment file
         run: |
           cp .env.example .env
       
-      # Build the Docker images
+      # Build the Docker images - using docker compose V2 syntax (with space, not hyphen)
       - name: Build Docker images
-        run: docker-compose build
+        run: docker compose build
       
       # Start the containers
       - name: Start Docker containers
-        run: docker-compose up -d
+        run: docker compose up -d
       
       # Wait for the application to be ready
       - name: Wait for app to be ready
@@ -37,27 +41,28 @@ jobs:
           while ! curl -s http://localhost:80/health > /dev/null; do
             if [ $counter -eq $timeout ]; then
               echo "Timed out waiting for application to start"
+              docker compose logs
               exit 1
             fi
-            echo "Still waiting..."
+            echo "Still waiting... ($counter/$timeout)"
             sleep 2
             counter=$((counter+1))
           done
           echo "Application is up and running!"
       
-      # Optional: Run linting on the frontend container
-      - name: Run frontend linting
-        run: docker-compose exec -T frontend npm run lint
+      # Optional: Run linting on the frontend container if you add a script for it
+      # - name: Run frontend linting
+      #   run: docker compose exec -T frontend npm run lint
       
       # For future: Run Cypress tests when they're set up with a script
-      # - name: Run E2E tests
-      #   run: |
-      #     cd frontend
-      #     npx cypress run
+      - name: Run E2E tests
+        run: |
+          cd frontend
+          npx cypress run
       
       # Stop containers
       - name: Stop Docker containers
-        run: docker-compose down
+        run: docker compose down
   
   deploy:
     name: Deploy to Production
@@ -81,6 +86,6 @@ jobs:
           ssh -o StrictHostKeyChecking=accept-new ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} '
             cd ${{ secrets.APP_DIR }} &&
             git pull origin ${{ github.ref_name }} &&
-            docker-compose down &&
-            docker-compose up -d --build
+            docker compose down &&
+            docker compose up -d --build
           '
