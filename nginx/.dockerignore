@@ -1,0 +1,33 @@
+# Node modules
+frontend/node_modules
+backend/node_modules
+
+# Git and version control
+.git
+.github
+.gitignore
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment variables
+.env
+.env.*
+
+# Build directories
+frontend/dist
+
+# Tests
+frontend/cypress
+**/*.test.js
+**/*.spec.js
+
+# Documentation
+*.md
+LICENSE
+
+# Editor configs
+.vscode
+.idea
+*.sw*
