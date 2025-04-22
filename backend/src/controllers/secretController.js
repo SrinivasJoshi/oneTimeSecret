@@ -39,37 +39,54 @@ const consumeSecret = async (req, res, next) => {
     return res.status(400).json({ message: 'Missing reference ID in request path.' });
   }
 
-  // Use DELETE ... RETURNING for atomicity.
-  // This attempts to delete the record only if it matches the criteria (not viewed, not expired)
-  // and returns the deleted row's data if successful.
-  const consumeQuery = `
-    DELETE FROM secrets
-    WHERE reference_id = $1 AND viewed = FALSE AND expires_at > NOW()
-    RETURNING encrypted_secret;
-  `;
+  // Start a transaction to ensure complete atomicity
+  const client = await db.getClient();
 
   try {
-    const result = await db.query(consumeQuery, [id]);
+    await client.query('BEGIN');
 
-    if (result.rows.length > 0) {
-      // Successfully deleted (consumed)
-      res.status(200).json({ encryptedSecret: result.rows[0].encrypted_secret });
-    } else {
-      // No rows deleted means it didn't exist, was already viewed, or expired
-      // Check if it ever existed to differentiate 404 vs 410 (optional complexity)
-      const checkExistsQuery = `SELECT 1 FROM secrets WHERE reference_id = $1`;
-      const existsResult = await db.query(checkExistsQuery, [id]);
-      if (existsResult.rows.length > 0) {
-          // It existed but was already viewed or expired
-          res.status(410).json({ message: 'Secret has expired or already been viewed.' });
-      } else {
-          // It never existed
-          res.status(404).json({ message: 'Secret not found.' });
-      }
+    // Lock the row exclusively while we check and update
+    const lockQuery = `
+      SELECT encrypted_secret, viewed, expires_at 
+      FROM secrets 
+      WHERE reference_id = $1 
+      FOR UPDATE;
+    `;
+
+    const result = await client.query(lockQuery, [id]);
+
+    if (result.rows.length === 0) {
+      await client.query('COMMIT');
+      return res.status(404).json({ message: 'Secret not found.' });
     }
+
+    const secret = result.rows[0];
+
+    // Check if secret is already viewed or expired
+    if (secret.viewed || secret.expires_at <= new Date()) {
+      await client.query('COMMIT');
+      return res.status(410).json({ message: 'Secret has expired or already been viewed.' });
+    }
+
+    // Mark as viewed and get the secret
+    const updateQuery = `
+      UPDATE secrets 
+      SET viewed = TRUE 
+      WHERE reference_id = $1 
+      RETURNING encrypted_secret;
+    `;
+
+    const updateResult = await client.query(updateQuery, [id]);
+    await client.query('COMMIT');
+
+    res.status(200).json({ encryptedSecret: updateResult.rows[0].encrypted_secret });
+
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error(`Error consuming secret ${id}:`, error);
-    next(error); // Pass error to global error handler
+    next(error);
+  } finally {
+    client.release();
   }
 };
 

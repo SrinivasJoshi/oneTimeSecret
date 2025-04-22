@@ -51,26 +51,27 @@ const initializeDb = async () => {
 
 // Function to cleanup expired/viewed secrets
 const cleanupSecrets = async () => {
-    console.log('Running secret cleanup task...');
-    const deleteQuery = `
+  console.log('Running secret cleanup task...');
+  const deleteQuery = `
         DELETE FROM secrets
         WHERE expires_at < NOW() OR viewed = true;
     `;
-    try {
-        const result = await query(deleteQuery);
-        if (result.rowCount > 0) {
-            console.log(`Cleanup task deleted ${result.rowCount} secrets.`);
-        } else {
-            console.log('Cleanup task found no secrets to delete.');
-        }
-    } catch (err) {
-        console.error('Error during secret cleanup task:', err);
+  try {
+    const result = await query(deleteQuery);
+    if (result.rowCount > 0) {
+      console.log(`Cleanup task deleted ${result.rowCount} secrets.`);
+    } else {
+      console.log('Cleanup task found no secrets to delete.');
     }
+  } catch (err) {
+    console.error('Error during secret cleanup task:', err);
+  }
 };
 
 module.exports = {
-  query,
+  query: (text, params) => pool.query(text, params),
   initializeDb,
   cleanupSecrets,
+  getClient: () => pool.connect(),
   pool // Export pool if needed for transactions elsewhere
 };
